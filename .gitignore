@@ -36,6 +36,9 @@ venv.bak/
 .env.development
 .env.test
 .env.production
+frontend/.env
+frontend/.env.local
+frontend/.env.production
 
 # Jupyter Notebook
 .ipynb_checkpoints
@@ -66,12 +69,14 @@ data/processed/
 !data/.gitkeep
 !data/README.md
 
-# Ignore saved models
+# Ignore saved models (large files)
 models/*.joblib
-models/*.pkl
 models/*.pt
 models/*.h5
 models/*.onnx
+models/saved_models/*.pkl
+# Allow the trained artifact needed by the API
+!models/saved_models/best_model.pkl
 
 # OS Generated Files
 .DS_Store
