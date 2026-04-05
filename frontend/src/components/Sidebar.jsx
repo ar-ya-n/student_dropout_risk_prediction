@@ -1,15 +1,24 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { logoutUser } from '../services/authService';
+import { useAuth } from '../context/AuthContext';
 
-const links = [
+const teacherLinks = [
   { to: '/dashboard', label: 'Dashboard', icon: '📊' },
   { to: '/predict', label: 'Predict', icon: '🧍' },
   { to: '/upload', label: 'Upload CSV', icon: '📤' }
 ];
 
+const studentLinks = [
+  { to: '/student-portal', label: 'My Portal', icon: '🎓' },
+  { to: '/student-predict', label: 'Self Assessment', icon: '📝' }
+];
+
 export default function Sidebar() {
   const navigate = useNavigate();
+  const { userRole } = useAuth();
+  
+  const links = userRole === 'student' ? studentLinks : teacherLinks;
 
   const handleLogout = async () => {
     try {

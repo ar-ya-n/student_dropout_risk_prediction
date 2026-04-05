@@ -7,6 +7,7 @@ export default function Signup() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [role, setRole] = useState('student');
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -20,9 +21,12 @@ export default function Signup() {
     setLoading(true);
     setError(null);
     try {
-      await registerUser(email, password);
-      // Wait for AuthContext to pick up the user, then redirect
-      navigate('/dashboard');
+      await registerUser(email, password, role);
+      if (role === 'teacher') {
+        navigate('/dashboard');
+      } else {
+        navigate('/student-portal');
+      }
     } catch (err) {
       console.error(err);
       setError(err.message || 'Failed to create an account.');
@@ -51,6 +55,28 @@ export default function Signup() {
             {error}
           </div>
         )}
+
+        {/* Role Toggle */}
+        <div className="flex bg-slate-100 dark:bg-slate-700/50 p-1 rounded-xl mb-6">
+          <button
+            type="button"
+            onClick={() => setRole('student')}
+            className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${
+              role === 'student' ? 'bg-white dark:bg-slate-600 shadow-sm text-primary-500 dark:text-primary-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
+            }`}
+          >
+            I am a Student
+          </button>
+          <button
+            type="button"
+            onClick={() => setRole('teacher')}
+            className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${
+              role === 'teacher' ? 'bg-white dark:bg-slate-600 shadow-sm text-primary-500 dark:text-primary-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
+            }`}
+          >
+            I am a Teacher
+          </button>
+        </div>
 
         <form onSubmit={handleSignup} className="space-y-5">
           <div>

@@ -2,11 +2,14 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { loginUser } from '../services/authService';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../firebase/config';
 
 export default function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [role, setRole] = useState('student');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -19,8 +22,22 @@ export default function Login() {
     setLoading(true);
     setError('');
     try {
-      await loginUser(email.trim(), password);
-      navigate('/dashboard');
+      const user = await loginUser(email.trim(), password);
+      
+      // Fetch role precisely to prevent UI flicker
+      const docRef = doc(db, "users", user.uid);
+      const docSnap = await getDoc(docRef);
+      let fetchedRole = "student";
+      
+      if (docSnap.exists()) {
+        fetchedRole = docSnap.data().role;
+      }
+      
+      if (fetchedRole === 'teacher') {
+        navigate('/dashboard');
+      } else {
+        navigate('/student-portal');
+      }
     } catch (err) {
       console.error(err);
       setError('Failed to login. Please check your credentials.');
@@ -51,8 +68,29 @@ export default function Login() {
             <p className="text-sm text-slate-300 mt-1">AI-Powered Student Risk Analysis</p>
           </div>
 
-          {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Role Toggle */}
+            <div className="flex bg-white/5 border border-white/10 p-1 rounded-xl mb-4">
+              <button
+                type="button"
+                onClick={() => setRole('student')}
+                className={`flex-1 py-1.5 text-xs text-center font-semibold rounded-lg transition-all ${
+                  role === 'student' ? 'bg-primary-500 text-white shadow-lg shadow-primary-500/20' : 'text-slate-400 hover:text-slate-300'
+                }`}
+              >
+                Student
+              </button>
+              <button
+                type="button"
+                onClick={() => setRole('teacher')}
+                className={`flex-1 py-1.5 text-xs text-center font-semibold rounded-lg transition-all ${
+                  role === 'teacher' ? 'bg-primary-500 text-white shadow-lg shadow-primary-500/20' : 'text-slate-400 hover:text-slate-300'
+                }`}
+              >
+                Teacher
+              </button>
+            </div>
+
             <div>
               <label className="block text-xs font-medium text-slate-300 mb-1.5">Email</label>
               <input
