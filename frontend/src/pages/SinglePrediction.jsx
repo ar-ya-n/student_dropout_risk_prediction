@@ -1,9 +1,10 @@
-  import { useState } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import usePrediction from '../hooks/usePrediction';
 import Loader from '../components/Loader';
 
 const INITIAL = {
+  Name: '',
   'Age at enrollment': '',
   Gender: '0',
   Sem1_SGPA: '',
@@ -69,7 +70,7 @@ const dropdowns = [
 export default function SinglePrediction() {
   const [form, setForm] = useState(INITIAL);
   const [errors, setErrors] = useState({});
-  const { result, loading, error, predict, reset } = usePrediction();
+  const { result, loading, saving, saveSuccess, error, predict, reset } = usePrediction();
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -78,6 +79,7 @@ export default function SinglePrediction() {
 
   const validate = () => {
     const errs = {};
+    if (!form.Name || form.Name.trim() === '') errs.Name = 'Required';
     if (!form['Age at enrollment']) errs['Age at enrollment'] = 'Required';
     if (!form.Attendance || form.Attendance < 0 || form.Attendance > 100) errs.Attendance = '0-100';
     if (!form.Sem1_SGPA || form.Sem1_SGPA < 0) errs.Sem1_SGPA = 'Required';
@@ -103,7 +105,11 @@ export default function SinglePrediction() {
       Attendance: parseFloat(form.Attendance),
       Backlogs: parseInt(form.Backlogs, 10),
     };
-    predict(payload);
+    const dbPayload = {
+      Name: form.Name.trim(),
+      ...payload
+    };
+    predict(payload, dbPayload);
   };
 
   const handleReset = () => {
@@ -133,6 +139,25 @@ export default function SinglePrediction() {
         >
           <h2 className="text-lg font-semibold text-slate-800 dark:text-white mb-5">Student Information</h2>
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Student Name */}
+            <div>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">
+                Student Name
+              </label>
+              <input
+                type="text"
+                name="Name"
+                value={form.Name}
+                onChange={handleChange}
+                placeholder="e.g. Jane Doe"
+                className={`w-full px-3.5 py-2.5 rounded-xl border text-sm bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 transition-all ${errors.Name ? 'border-red-400' : 'border-slate-200 dark:border-slate-600'
+                  }`}
+              />
+              {errors.Name && (
+                <p className="text-xs text-red-500 mt-1">{errors.Name}</p>
+              )}
+            </div>
+
             {/* Number fields */}
             <div className="grid grid-cols-2 gap-4">
               {fieldConfig.map((f) => (
@@ -149,16 +174,15 @@ export default function SinglePrediction() {
                     max={f.max}
                     step={f.step}
                     placeholder={f.placeholder}
-                    className={`w-full px-3.5 py-2.5 rounded-xl border text-sm bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 transition-all ${
-                      errors[f.name] ? 'border-red-400' : 'border-slate-200 dark:border-slate-600'
-                    }`}
+                    className={`w-full px-3.5 py-2.5 rounded-xl border text-sm bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 transition-all ${errors[f.name] ? 'border-red-400' : 'border-slate-200 dark:border-slate-600'
+                      }`}
                   />
                   {errors[f.name] && (
                     <p className="text-xs text-red-500 mt-1">{errors[f.name]}</p>
                   )}
                 </div>
               ))}
-              
+
               {/* Dropdowns */}
               {dropdowns.map((d) => (
                 <div key={d.name}>
@@ -186,7 +210,7 @@ export default function SinglePrediction() {
                 disabled={loading}
                 className="flex-1 py-3 rounded-xl bg-gradient-to-r from-primary-500 to-violet-500 text-white font-semibold text-sm shadow-lg shadow-primary-500/20 hover:shadow-xl hover:shadow-primary-500/30 hover:from-primary-400 hover:to-violet-400 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Analyzing...' : '🔍 Predict Risk'}
+                {loading ? 'Analyzing...' : 'Predict'}
               </button>
               <button
                 type="button"
@@ -210,8 +234,30 @@ export default function SinglePrediction() {
         </motion.div>
 
         {/* Result */}
-        <div className="min-h-[400px] flex items-start">
-          {loading && <Loader text="Running AI model..." />}
+        <div className="min-h-[400px] flex flex-col w-full">
+          {loading && !result && <div className="mx-auto mt-20"><Loader text="Running AI model..." /></div>}
+
+          {saving && (
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+              className="mb-4 flex items-center justify-center p-3 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-sm text-blue-600 dark:text-blue-400"
+            >
+              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Saving prediction to history...
+            </motion.div>
+          )}
+
+          {!saving && saveSuccess && (
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+              className="mb-4 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-sm font-medium text-emerald-600 dark:text-emerald-400 text-center"
+            >
+              ✅ Prediction saved successfully!
+            </motion.div>
+          )}
 
           <AnimatePresence mode="wait">
             {result && !loading && (

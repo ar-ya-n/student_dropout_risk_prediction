@@ -51,6 +51,10 @@ def run_inference_pipeline(
 
     df = load_raw_data(raw_csv_path)
     df, student_ids = pop_id_column(df)
+    
+    # Save original inputs to map back to UI
+    raw_dicts = df.to_dict(orient="records")
+    
     df = apply_feature_engineering(df)
 
     if target_column in df.columns:
@@ -84,6 +88,7 @@ def run_inference_pipeline(
             "Risk Level": risk_levels,
             "Rank": ranks,
             "Recommendation": recommendations,
+            "Input_Data": raw_dicts,
         }
     )
 

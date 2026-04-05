@@ -1,33 +1,61 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import StatCard from '../components/StatCard';
 import { RiskPieChart, TopRiskBarChart } from '../components/Charts';
 import ResultsTable from '../components/ResultsTable';
 import StudentModal from '../components/StudentModal';
+import { getUserPredictions } from '../services/firestoreService';
+import { useAuth } from '../context/AuthContext';
+import Loader from '../components/Loader';
 
 export default function Dashboard() {
   const [selectedStudent, setSelectedStudent] = useState(null);
+  const [predictions, setPredictions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const { currentUser } = useAuth();
 
-  // Load predictions from localStorage (set by batch upload or we generate demo data)
-  const predictions = useMemo(() => {
-    const stored = localStorage.getItem('predictions');
-    if (stored) {
-      try { return JSON.parse(stored); } catch { /* ignore */ }
+  useEffect(() => {
+    async function fetchHistory() {
+      if (!currentUser) return;
+      try {
+        setLoading(true);
+        const data = await getUserPredictions(currentUser.uid);
+        let formatted = data.map((p, index) => ({
+          id: String(p.id).substring(0, 8),
+          fullId: p.id,
+          prediction: p.output?.prediction,
+          probability: p.output?.probability || 0,
+          risk_level: p.output?.risk_level || 'Unknown',
+          recommendation: p.output?.recommendation || '',
+          s_no: data.length - index,
+          ...p
+        }));
+
+        // Replace the incorrect time-based rank with purely risk-based rank
+        const sortedByRisk = [...formatted].sort((a, b) => b.probability - a.probability);
+        const rankMap = new Map();
+        sortedByRisk.forEach((item, idx) => {
+          rankMap.set(item.fullId, idx + 1);
+        });
+        
+        formatted = formatted.map(item => ({
+          ...item,
+          rank: rankMap.get(item.fullId)
+        }));
+
+        setPredictions(formatted);
+      } catch (err) {
+        console.error("Failed to fetch dashboard history:", err);
+      } finally {
+        setLoading(false);
+      }
     }
-    // Demo data
-    return [
-      { id: 1, prediction: 1, probability: 0.92, risk_level: 'High Risk', rank: 1, recommendation: 'Immediate intervention required. Schedule counseling session.' },
-      { id: 2, prediction: 1, probability: 0.84, risk_level: 'High Risk', rank: 2, recommendation: 'Assign academic mentor. Review attendance patterns.' },
-      { id: 3, prediction: 1, probability: 0.71, risk_level: 'High Risk', rank: 3, recommendation: 'Check financial aid eligibility. Monitor closely.' },
-      { id: 4, prediction: 0, probability: 0.55, risk_level: 'Medium Risk', rank: 4, recommendation: 'Regular check-ins recommended. Provide study resources.' },
-      { id: 5, prediction: 0, probability: 0.48, risk_level: 'Medium Risk', rank: 5, recommendation: 'Monitor academic progress. Encourage participation.' },
-      { id: 6, prediction: 0, probability: 0.35, risk_level: 'Medium Risk', rank: 6, recommendation: 'Periodic review. Ensure adequate support available.' },
-      { id: 7, prediction: 0, probability: 0.22, risk_level: 'Low Risk', rank: 7, recommendation: 'Continue current support. Student performing well.' },
-      { id: 8, prediction: 0, probability: 0.15, risk_level: 'Low Risk', rank: 8, recommendation: 'Student is on track. Maintain engagement.' },
-      { id: 9, prediction: 0, probability: 0.08, risk_level: 'Low Risk', rank: 9, recommendation: 'No immediate concerns.' },
-      { id: 10, prediction: 0, probability: 0.05, risk_level: 'Low Risk', rank: 10, recommendation: 'Excellent performance. Consider for peer mentoring.' },
-    ];
-  }, []);
+    fetchHistory();
+  }, [currentUser]);
+
+  if (loading) {
+    return <Loader text="Loading dashboard..." />;
+  }
 
   const high = predictions.filter((p) => p.risk_level === 'High Risk').length;
   const medium = predictions.filter((p) => p.risk_level === 'Medium Risk').length;
@@ -55,33 +83,43 @@ export default function Dashboard() {
       </div>
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatCard label="Total Students" value={predictions.length} icon="👥" color="primary" />
-        <StatCard label="High Risk" value={high} icon="🔴" color="red" />
-        <StatCard label="Medium Risk" value={medium} icon="🟡" color="yellow" />
-        <StatCard label="Low Risk" value={low} icon="🟢" color="green" />
-      </div>
+      {predictions.length === 0 ? (
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-8 border border-slate-100 dark:border-slate-700/50 text-center">
+          <div className="text-4xl mb-4">📭</div>
+          <h3 className="text-lg font-semibold text-slate-700 dark:text-slate-300">No predictions yet</h3>
+          <p className="text-slate-500 dark:text-slate-400 mt-2">Go to the Predict tab to make your first prediction.</p>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <StatCard label="Total Students" value={predictions.length} icon="👥" color="primary" />
+            <StatCard label="High Risk" value={high} icon="🔴" color="red" />
+            <StatCard label="Medium Risk" value={medium} icon="🟡" color="yellow" />
+            <StatCard label="Low Risk" value={low} icon="🟢" color="green" />
+          </div>
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-          <RiskPieChart data={pieData} />
-        </motion.div>
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-          <TopRiskBarChart data={topRisk} />
-        </motion.div>
-      </div>
+          {/* Charts */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+              <RiskPieChart data={pieData} />
+            </motion.div>
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+              <TopRiskBarChart data={topRisk} />
+            </motion.div>
+          </div>
 
-      {/* Table */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-        className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-700/50"
-      >
-        <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-4">Recent Predictions</h3>
-        <ResultsTable data={predictions} onViewDetails={setSelectedStudent} />
-      </motion.div>
+          {/* Table */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-700/50"
+          >
+            <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-4">Prediction History</h3>
+            <ResultsTable data={predictions} onViewDetails={setSelectedStudent} />
+          </motion.div>
+        </>
+      )}
 
       {/* Modal */}
       {selectedStudent && (

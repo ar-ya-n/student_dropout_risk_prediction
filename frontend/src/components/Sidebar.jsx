@@ -1,18 +1,23 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { logoutUser } from '../services/authService';
 
 const links = [
   { to: '/dashboard', label: 'Dashboard', icon: '📊' },
   { to: '/predict', label: 'Predict', icon: '🧍' },
-  { to: '/upload', label: 'Upload CSV', icon: '📤' },
+  { to: '/upload', label: 'Upload CSV', icon: '📤' }
 ];
 
 export default function Sidebar() {
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    localStorage.removeItem('user');
-    navigate('/');
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+      navigate('/');
+    } catch (error) {
+      console.error("Failed to log out", error);
+    }
   };
 
   return (

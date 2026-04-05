@@ -1,21 +1,32 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { loginUser } from '../services/authService';
 
 export default function Login() {
   const navigate = useNavigate();
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!username.trim() || !password.trim()) {
-      setError('Please enter both username and password');
+    if (!email.trim() || !password.trim()) {
+      setError('Please enter both email and password');
       return;
     }
-    localStorage.setItem('user', username.trim());
-    navigate('/predict');
+    setLoading(true);
+    setError('');
+    try {
+      await loginUser(email.trim(), password);
+      navigate('/dashboard');
+    } catch (err) {
+      console.error(err);
+      setError('Failed to login. Please check your credentials.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -43,13 +54,13 @@ export default function Login() {
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">Username</label>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">Email</label>
               <input
-                type="text"
-                value={username}
-                onChange={(e) => { setUsername(e.target.value); setError(''); }}
+                type="email"
+                value={email}
+                onChange={(e) => { setEmail(e.target.value); setError(''); }}
                 className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-400 transition-all"
-                placeholder="Enter your username"
+                placeholder="Enter your email"
               />
             </div>
             <div>
@@ -75,14 +86,18 @@ export default function Login() {
 
             <button
               type="submit"
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-primary-500 to-violet-500 text-white font-semibold text-sm shadow-lg shadow-primary-500/30 hover:shadow-xl hover:shadow-primary-500/40 hover:from-primary-400 hover:to-violet-400 active:scale-[0.98] transition-all"
+              disabled={loading}
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-primary-500 to-violet-500 text-white font-semibold text-sm shadow-lg shadow-primary-500/30 hover:shadow-xl hover:shadow-primary-500/40 hover:from-primary-400 hover:to-violet-400 active:scale-[0.98] transition-all disabled:opacity-50"
             >
-              Sign In
+              {loading ? 'Signing In...' : 'Sign In'}
             </button>
           </form>
 
-          <p className="text-xs text-slate-400 text-center mt-6">
-            Demo login — enter any credentials to continue
+          <p className="text-sm text-slate-300 text-center mt-6">
+            Don't have an account?{' '}
+            <Link to="/signup" className="text-white font-semibold hover:text-primary-300 transition-colors">
+              Sign up
+            </Link>
           </p>
         </div>
       </motion.div>

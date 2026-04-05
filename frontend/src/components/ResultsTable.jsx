@@ -31,12 +31,16 @@ export default function ResultsTable({ data, onViewDetails }) {
   const filtered = data
     .filter(
       (r) =>
-        String(r.id).includes(search) ||
+        String(r.input?.Name || r.id).toLowerCase().includes(search.toLowerCase()) ||
         r.risk_level.toLowerCase().includes(search.toLowerCase())
     )
     .sort((a, b) => {
-      const av = a[sortKey];
-      const bv = b[sortKey];
+      let av = a[sortKey];
+      let bv = b[sortKey];
+      if (sortKey === 'id') {
+         av = a.input?.Name || a.id;
+         bv = b.input?.Name || b.id;
+      }
       if (typeof av === 'number') return sortAsc ? av - bv : bv - av;
       return sortAsc ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
     });
@@ -46,13 +50,24 @@ export default function ResultsTable({ data, onViewDetails }) {
       <span className="ml-1 text-xs">{sortAsc ? '▲' : '▼'}</span>
     ) : null;
 
+  const hasSNo = data.some(r => r.s_no !== undefined);
+  const columns = [];
+  if (hasSNo) columns.push({ key: 's_no', label: 'S.No.' });
+  columns.push(
+    { key: 'id', label: 'Student' },
+    { key: 'risk_level', label: 'Risk Level' },
+    { key: 'probability', label: 'Probability' },
+    { key: 'rank', label: 'Rank' },
+    { key: null, label: 'Action' }
+  );
+
   return (
     <div>
       {/* Search */}
       <div className="mb-4">
         <input
           type="text"
-          placeholder="Search by ID or risk level..."
+          placeholder="Search by Name, ID, or Risk..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="w-full max-w-sm px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500"
@@ -64,13 +79,7 @@ export default function ResultsTable({ data, onViewDetails }) {
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-slate-50 dark:bg-slate-800/80 text-left">
-              {[
-                { key: 'id', label: 'ID' },
-                { key: 'risk_level', label: 'Risk Level' },
-                { key: 'probability', label: 'Probability' },
-                { key: 'rank', label: 'Rank' },
-                { key: null, label: 'Action' },
-              ].map(({ key, label }) => (
+              {columns.map(({ key, label }) => (
                 <th
                   key={label}
                   className={`px-4 py-3 font-semibold text-slate-600 dark:text-slate-300 ${
@@ -93,7 +102,21 @@ export default function ResultsTable({ data, onViewDetails }) {
                 transition={{ delay: i * 0.02 }}
                 className={`${rowBg(row.risk_level)} hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors`}
               >
-                <td className="px-4 py-3 font-medium text-slate-800 dark:text-white">{row.id}</td>
+                {hasSNo && <td className="px-4 py-3 font-medium text-slate-500 dark:text-slate-400">{row.s_no}</td>}
+                <td className="px-4 py-3">
+                  {row.input?.Name ? (
+                    <span className="font-medium text-slate-800 dark:text-white">
+                      {row.input.Name}
+                    </span>
+                  ) : (
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-0.5">ID</span>
+                      <span className="font-mono text-sm text-slate-600 dark:text-slate-300">
+                        {row.id}
+                      </span>
+                    </div>
+                  )}
+                </td>
                 <td className="px-4 py-3">
                   <span className={`px-3 py-1 rounded-lg text-xs font-semibold ${riskBadge(row.risk_level)}`}>
                     {row.risk_level}

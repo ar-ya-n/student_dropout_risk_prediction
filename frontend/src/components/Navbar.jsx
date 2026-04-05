@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
+import { useAuth } from '../context/AuthContext';
 
 export default function Navbar() {
   const [dark, setDark] = useState(() => localStorage.getItem('theme') === 'dark');
-  const user = localStorage.getItem('user') || 'Teacher';
+  const { currentUser } = useAuth();
+  const userName = currentUser?.email?.split('@')[0] || 'Teacher';
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', dark);
@@ -12,7 +14,7 @@ export default function Navbar() {
   return (
     <header className="sticky top-0 z-20 h-16 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200 dark:border-slate-700/50 flex items-center justify-between px-6">
       <div className="text-sm font-medium text-slate-500 dark:text-slate-400">
-        Welcome back, <span className="text-slate-800 dark:text-white font-semibold">{user}</span>
+        Welcome back, <span className="text-slate-800 dark:text-white font-semibold">{userName}</span>
       </div>
 
       <div className="flex items-center gap-4">
@@ -26,8 +28,8 @@ export default function Navbar() {
         </button>
 
         {/* Avatar */}
-        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary-500 to-violet-500 flex items-center justify-center text-white text-sm font-bold">
-          {user.charAt(0).toUpperCase()}
+        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary-500 to-violet-500 flex items-center justify-center text-white text-sm font-bold uppercase">
+          {userName.charAt(0)}
         </div>
       </div>
     </header>

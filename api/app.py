@@ -67,6 +67,7 @@ class PredictionRecord(BaseModel):
     risk_level: str
     rank: int
     recommendation: str
+    input: Optional[dict] = None
 
 
 class PredictResponse(BaseModel):
@@ -97,6 +98,7 @@ def _dataframe_to_results(model: pd.DataFrame) -> List[PredictionRecord]:
                 risk_level=str(r["Risk Level"]),
                 rank=int(r["Rank"]),
                 recommendation=str(r["Recommendation"]),
+                input=r.get("Input_Data") if "Input_Data" in r else None,
             )
         )
     return rows

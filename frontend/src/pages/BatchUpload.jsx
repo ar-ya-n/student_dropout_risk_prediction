@@ -5,6 +5,8 @@ import ResultsTable from '../components/ResultsTable';
 import StudentModal from '../components/StudentModal';
 import Loader from '../components/Loader';
 import { predictBatch } from '../services/api';
+import { useAuth } from '../context/AuthContext';
+import { saveBatchPredictions } from '../services/firestoreService';
 
 export default function BatchUpload() {
   const [file, setFile] = useState(null);
@@ -12,6 +14,9 @@ export default function BatchUpload() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [selectedStudent, setSelectedStudent] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const { currentUser } = useAuth();
 
   const handleUpload = async () => {
     if (!file) return;
@@ -21,8 +26,19 @@ export default function BatchUpload() {
     try {
       const data = await predictBatch(file);
       setResults(data.results);
-      // Persist for dashboard
-      localStorage.setItem('predictions', JSON.stringify(data.results));
+      
+      if (currentUser) {
+        setSaving(true);
+        try {
+          await saveBatchPredictions(currentUser.uid, data.results);
+          setSaveSuccess(true);
+          setTimeout(() => setSaveSuccess(false), 3000);
+        } catch (err) {
+          console.error('Failed to save batch to firestore', err);
+        } finally {
+          setSaving(false);
+        }
+      }
     } catch (err) {
       setError(err.response?.data?.detail || err.message || 'Upload failed');
     } finally {
@@ -75,6 +91,29 @@ export default function BatchUpload() {
 
       {/* Loading */}
       {loading && <Loader text="Processing CSV file..." />}
+
+      {/* Saving */}
+      {saving && (
+        <motion.div
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+          className="mb-6 flex items-center justify-center p-3 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-sm text-blue-600 dark:text-blue-400"
+        >
+          <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          Saving predictions to your history...
+        </motion.div>
+      )}
+      
+      {saveSuccess && (
+        <motion.div
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+          className="mb-6 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-sm font-medium text-emerald-600 dark:text-emerald-400 text-center"
+        >
+          ✅ Batch predictions saved successfully to your history!
+        </motion.div>
+      )}
 
       {/* Results */}
       {results && !loading && (
