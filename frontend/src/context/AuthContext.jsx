@@ -14,6 +14,7 @@ export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [userRole, setUserRole] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [initialLoad, setInitialLoad] = useState(true);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -38,6 +39,7 @@ export function AuthProvider({ children }) {
         setUserRole(null);
       }
       setLoading(false);
+      setInitialLoad(false);
     });
 
     return unsubscribe;
@@ -49,7 +51,7 @@ export function AuthProvider({ children }) {
     loading
   };
 
-  if (loading) {
+  if (initialLoad) {
     return (
       <div className="flex h-screen w-screen items-center justify-center p-4">
         <Loader text="Loading Authentication..." />

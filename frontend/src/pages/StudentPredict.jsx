@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import usePrediction from '../hooks/usePrediction';
 import Loader from '../components/Loader';
+import { getSmartExplanations, getActionPlan } from '../utils/studentAnalytics';
 
 const INITIAL = {
   Name: '',
@@ -36,22 +37,6 @@ function riskStyles(level) {
     badge: 'bg-emerald-500 text-white',
     glow: 'shadow-emerald-500/20',
   };
-}
-
-function generateExplanations(form, probability) {
-  const reasons = [];
-  const cgpa = parseFloat(form.CGPA);
-  const attendance = parseFloat(form.Attendance);
-  const backlogs = parseInt(form.Backlogs, 10);
-
-  if (!isNaN(cgpa) && cgpa < 6.0) reasons.push('Low academic performance (CGPA below 6.0)');
-  if (!isNaN(attendance) && attendance < 75) reasons.push('Poor attendance (below 75%)');
-  if (!isNaN(backlogs) && backlogs > 0) reasons.push(`Student currently has ${backlogs} backlog(s)`);
-  if (probability >= 0.7) reasons.push('Very high dropout probability detected by AI model');
-  else if (probability >= 0.4) reasons.push('Moderate dropout risk flag from AI model');
-
-  if (reasons.length === 0) reasons.push('Student profile appears healthy');
-  return reasons;
 }
 
 const fieldConfig = [
@@ -119,7 +104,8 @@ export default function StudentPredict() {
   };
 
   const styles = result ? riskStyles(result.risk_level) : null;
-  const explanations = result ? generateExplanations(form, result.probability) : [];
+  const smartExplanations = result ? getSmartExplanations(form, result.probability) : [];
+  const actionPlan = result ? getActionPlan(form, result.probability, result.risk_level) : [];
 
   return (
     <div className="max-w-5xl mx-auto">
@@ -291,35 +277,52 @@ export default function StudentPredict() {
                   </div>
                 </div>
 
-                {/* Explanations */}
-                <div className="mb-4">
-                  <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-                    ðŸ§  Risk Factors
+                {/* Dynamic Explanations */}
+                <div className="mb-6">
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-3">
+                    📊 Main Risk Factors
                   </h3>
-                  <ul className="space-y-2">
-                    {explanations.map((e, i) => (
-                      <motion.li
+                  <div className="space-y-3">
+                    {smartExplanations.map((e, i) => (
+                      <motion.div
                         key={i}
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: i * 0.1 }}
-                        className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-400"
+                        className="bg-white/50 dark:bg-slate-900/50 rounded-xl p-3 flex items-center justify-between border border-slate-200/50 dark:border-slate-700/50"
                       >
-                        <span className="text-primary-500 mt-0.5">â–¸</span>
-                        <span>{e}</span>
-                      </motion.li>
+                        <div className="flex items-center gap-3">
+                           <span className="text-xl">{e.icon}</span>
+                           <div>
+                             <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">{e.factor}</p>
+                             <p className="text-xs text-slate-500 dark:text-slate-400">{e.desc}</p>
+                           </div>
+                        </div>
+                        <div className="text-right">
+                           <p className="text-sm font-bold text-slate-700 dark:text-slate-300">~{e.contribution.toFixed(0)}%</p>
+                           <p className="text-[10px] uppercase font-bold text-slate-400">Contribution</p>
+                        </div>
+                      </motion.div>
                     ))}
-                  </ul>
+                  </div>
                 </div>
 
-                {/* Recommendation */}
-                <div className="rounded-xl bg-white/80 dark:bg-slate-800/80 p-4 border border-slate-200/50 dark:border-slate-700/50">
-                  <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    ðŸ’¡ Recommendation
+                {/* Priority Actions */}
+                <div className="mb-2">
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-3">
+                    🎯 Priority Actions
                   </h3>
-                  <p className="text-sm text-slate-600 dark:text-slate-400">
-                    {result.recommendation}
-                  </p>
+                  <div className="space-y-2">
+                    {actionPlan.map((action, i) => (
+                       <motion.div key={i} className="flex gap-3 items-start bg-white/40 dark:bg-slate-800/40 p-3 rounded-lg border-l-4 border-emerald-500">
+                          <span className="text-lg leading-none mt-0.5">{action.icon}</span>
+                          <div>
+                            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{action.text}</p>
+                            <p className={`text-[10px] tracking-wide uppercase font-bold mt-0.5 ${action.priority === 'URGENT' ? 'text-red-500' : action.priority === 'HIGH' ? 'text-amber-500' : 'text-emerald-500'}`}>{action.priority}</p>
+                          </div>
+                       </motion.div>
+                    ))}
+                  </div>
                 </div>
               </motion.div>
             )}

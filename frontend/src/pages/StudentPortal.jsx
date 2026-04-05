@@ -6,6 +6,8 @@ import Loader from '../components/Loader';
 import ResultsTable from '../components/ResultsTable';
 import StudentModal from '../components/StudentModal';
 import { Link } from 'react-router-dom';
+import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import StudentHabits from '../components/StudentHabits';
 
 function riskStyles(level) {
   const l = (level || '').toLowerCase();
@@ -85,6 +87,20 @@ export default function StudentPortal() {
   const latest = history.length > 0 ? history[0] : null;
   const latestStyle = latest ? riskStyles(latest.risk_level) : null;
 
+  // Normalize current performance metrics onto a standard 0-10 scale
+  const latestData = latest ? latest : null;
+  const att = latestData?.Attendance || latestData?.input?.Attendance || latestData?.inputData?.Attendance || 0;
+  const sem1 = latestData?.Sem1_SGPA || latestData?.input?.Sem1_SGPA || latestData?.inputData?.Sem1_SGPA || 0;
+  const sem2 = latestData?.Sem2_SGPA || latestData?.input?.Sem2_SGPA || latestData?.inputData?.Sem2_SGPA || 0;
+  const cgpa = latestData?.CGPA || latestData?.input?.CGPA || latestData?.inputData?.CGPA || 0;
+
+  const chartData = [
+    { name: 'Semester 1', value: sem1, color: '#3b82f6' },
+    { name: 'Semester 2', value: sem2, color: '#8b5cf6' },
+    { name: 'Current CGPA', value: cgpa, color: '#10b981' },
+    { name: 'Attendance', value: att / 10, color: '#f59e0b' } // 85% transforms to 8.5
+  ];
+
   return (
     <div className="max-w-5xl mx-auto pb-10">
       <div className="mb-8">
@@ -143,6 +159,52 @@ export default function StudentPortal() {
               </div>
             </div>
           </motion.div>
+
+          {/* Main Grid: Habits and Charts */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            <div className="lg:col-span-1">
+               <StudentHabits />
+            </div>
+            
+            <div className="lg:col-span-2 space-y-6">
+              {/* Trends Card */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+                className="bg-white dark:bg-slate-800 rounded-3xl p-6 shadow-sm border border-slate-100 dark:border-slate-700/50 h-full"
+              >
+                 <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-4">Current Academic Standing</h3>
+                 
+                 {latest ? (
+                   <div className="h-64 mt-6">
+                     <ResponsiveContainer width="100%" height="100%">
+                       <BarChart data={chartData} margin={{ top: 15, right: 20, bottom: 5, left: -20 }}>
+                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" opacity={0.2} />
+                         <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} />
+                         <YAxis axisLine={false} tickLine={false} domain={[0, 10]} ticks={[0, 2, 4, 6, 8, 10]} tick={{ fontSize: 12, fill: '#64748b' }} />
+                         <Tooltip 
+                            cursor={{ fill: 'transparent' }}
+                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                            formatter={(val, name, props) => [
+                               props.payload.name === 'Attendance' ? `${(val * 10).toFixed(1)}%` : val.toFixed(2),
+                               props.payload.name === 'Attendance' ? 'Attendance' : 'Grade (Scale of 10)'
+                            ]}
+                         />
+                         <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={60}>
+                            {chartData.map((entry, index) => (
+                               <Cell key={`cell-${index}`} fill={entry.color} />
+                            ))}
+                         </Bar>
+                       </BarChart>
+                     </ResponsiveContainer>
+                   </div>
+                 ) : (
+                   <div className="flex items-center justify-center h-64 text-slate-400 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-dashed border-slate-300 dark:border-slate-700">
+                     <p>Take an assessment to unlock your performance metrics!</p>
+                   </div>
+                 )}
+              </motion.div>
+            </div>
+          </div>
 
           {/* History Table */}
           <motion.div

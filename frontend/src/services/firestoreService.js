@@ -1,4 +1,4 @@
-import { collection, addDoc, query, where, getDocs, writeBatch, doc } from "firebase/firestore";
+import { collection, addDoc, query, where, getDocs, writeBatch, doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "../firebase/config";
 
 const PREDICTIONS_COLLECTION = "predictions";
@@ -83,5 +83,38 @@ export const saveBatchPredictions = async (userId, results) => {
   } catch (error) {
     console.error("Error saving batch predictions:", error);
     throw error;
+  }
+};
+
+/**
+ * Get user daily habits for the Study Tracker
+ */
+export const getUserHabits = async (userId) => {
+  try {
+    if (!userId) return { dates: {} };
+    const docRef = doc(db, `habits`, userId);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      return docSnap.data();
+    }
+    return { dates: {} };
+  } catch (err) {
+    console.error("Error fetching habits: ", err);
+    return { dates: {} };
+  }
+};
+
+/**
+ * Update user daily habits completion state
+ */
+export const updateUserHabits = async (userId, data) => {
+  try {
+    if (!userId) throw new Error("User ID required");
+    const docRef = doc(db, `habits`, userId);
+    await setDoc(docRef, data, { merge: true });
+    return true;
+  } catch (err) {
+    console.error("Error updating habits: ", err);
+    throw err;
   }
 };
